@@ -4,8 +4,38 @@ import { Inter } from "next/font/google";
 import styles from "@component/styles/Home.module.css";
 
 const inter = Inter({ subsets: ["latin"] });
+import useBookSearch from "@component/hooks/useBookSearch";
+import { ChangeEvent, useState, useRef, useCallback } from "react";
 
 export default function Home() {
+  const [query, setQuery] = useState("");
+  const [pageNumber, setPageNumber] = useState(1);
+  const { books, hasMore, loading, error } = useBookSearch(query, pageNumber);
+
+  
+  const observer: any = useRef();
+  const lastBookElementRef = useCallback(
+    (node: any) => {
+      if (loading) return;
+      
+      // disconnects the current selected element when the data is received
+      if (observer.current) observer.current.disconnect();
+      observer.current = new IntersectionObserver((entries) => {
+        console.log(entries);
+        if (entries[0].isIntersecting) {
+          console.log(hasMore)
+          setPageNumber((pageNumber) => pageNumber + 1);
+        }
+      });
+      if (node) observer.current.observe(node);
+    },
+    [hasMore, loading]
+  );
+
+  const handleSearch = (e: ChangeEvent<HTMLInputElement>) => {
+    setQuery(e.target.value);
+    setPageNumber(1);
+  };
   return (
     <>
       <Head>
@@ -20,15 +50,25 @@ export default function Home() {
       <main className={styles.main}>
         <h1>Infinite Scrolling</h1>
         <input
+          value={query}
           className={styles.input}
           placeholder="search a book"
           type="text"
+          onChange={handleSearch}
         />
-        <div>Title</div>
-        <div>Title</div>
-        <div>Title</div>
-        <div>Loading ...</div>
-        <div>Error</div>
+        {books.map((book, index) => {
+          if (books.length === index + 1) {
+            return (
+              <div ref={lastBookElementRef} key={book}>
+                {book}
+              </div>
+            );
+          } else {
+            return <div key={book}>{book}</div>;
+          }
+        })}
+        <div className={styles.loading}>{loading && "loading..."}</div>
+        <div>{error && "Error ..."}</div>
       </main>
     </>
   );
